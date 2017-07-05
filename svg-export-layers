@@ -59,6 +59,7 @@ class Exporter(object):
 	def __call__(self):
 		xml_namespaces = self.xml_namespaces
 		find_layers = self.find_layers
+		qname = self.qname
 		for path in self.options.inputs:
 			self.debug("Exporting from “%s”…" % path)
 			tree = element_tree.parse(path)
@@ -66,10 +67,7 @@ class Exporter(object):
 				node_id = node.get("id")
 				if node_id is None:
 					continue
-				label = node.get(
-					element_tree.QName(xml_namespaces["inkscape"], "label"),
-					node_id
-				)
+				label = node.get(qname("inkscape", "label"), node_id)
 				self.export_layer(path, node_id, label)
 
 	def debug(self, *args):
@@ -112,6 +110,23 @@ class Exporter(object):
 			print(*args, file=sys.stderr, **kwargs)
 			return
 		print("%s: %s" % (self.prog, args[0]), *args[1:], file=sys.stderr, **kwargs)
+
+	def qname(self, prefix, name):
+		"""
+		Builds a XML qualified name using `self.xml_namespaces` as a reference.
+
+		Parameters
+		----------
+		prefix: str
+			prefix, as defined in `self.xml_namespaces`
+		name: str
+			short name
+
+		Return value
+		------------
+		element_tree.QName
+		"""
+		return element_tree.QName(self.xml_namespaces[prefix], name)
 
 	def run(self, argv):
 		self.debug(command_to_str(argv))
