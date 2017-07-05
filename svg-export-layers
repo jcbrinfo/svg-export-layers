@@ -46,7 +46,7 @@ class Exporter(object):
 			self.debug("Exporting from “%s”…" % path)
 			tree = element_tree.parse(path)
 			for node in tree.findall(
-				"//svg:g[@inkscape:groupmode='layer']",
+				".//svg:g[@inkscape:groupmode='layer']",
 				namespaces=xml_namespaces
 			):
 				node_id = node.get("id")
