@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+
+# Copyright (c) jcbrinfo <jcbrinfo@users.noreply.github.com>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+"""
+A quick and dirty program that exports SVG layers using Inkscape.
+
+For help, run `svg-export-layers --help`
+"""
+
+import argparse
+import os.path
+import shlex
+import subprocess
+import sys
+import xml.etree.ElementTree as element_tree
+
+class Exporter(object):
+	def __init__(self, prog, options):
+		self.prog = prog
+		self.options = options
+		self.extension = "svg" if options.type == "plain-svg" else options.type
+		self.xml_namespaces = {
+			"svg": "http://www.w3.org/2000/svg",
+			"sodipodi": "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd",
+			"inkscape": "http://www.inkscape.org/namespaces/inkscape",
+			"xlink": "http://www.w3.org/1999/xlink",
+			"re": "http://exslt.org/regular-expressions"
+		}
+
+	def __call__(self):
+		xml_namespaces = self.xml_namespaces
+		for path in self.options.inputs:
+			self.debug("Exporting from “%s”…" % path)
+			tree = element_tree.parse(path)
+			for node in tree.findall(
+				"//svg:g[@inkscape:groupmode='layer']",
+				namespaces=xml_namespaces
+			):
+				node_id = node.get("id")
+				if node_id is None:
+					continue
+				label = node.get(
+					element_tree.QName(xml_namespaces["inkscape"], "label"),
+					node_id
+				)
+				self.export_layer(path, node_id, label)
+
+	def debug(self, *msg):
+		if (self.options.verbose):
+			self.print_error(msg)
+
+	def export_layer(self, path, node_id, label):
+		self.debug("Exporting layer “%s”…" % label)
+		options = self.options
+		output_path = os.path.join(
+			options.dir,
+			"".join([options.prefix, label, ".", self.extension])
+		)
+		# FIXME: Race condition
+		if options.force and os.path.exists(ouput_path) and not confirm(
+			"File “%s” already exists. Do you want to overwrite it?" % ouput_path,
+			False
+		):
+			print_error("File “%s” skipped." % ouput_path)
+			return
+		command = [
+			options.inkscape,
+			"-i", node_id,
+			"--export-" + options.type, output_path,
+			"--export-area-page",
+			"--export-id-only"
+		] + options.extra + [
+			"--", path
+		]
+		self.run(command)
+
+	def print_error(self, *args, **kwargs):
+		if not args or ("end" in kwargs):
+			print(*args, file=sys.stderr, **kwargs)
+			return
+		print("%s: %s" % (self.prog, args[0]), *args[1:], file=sys.stderr, **kwargs)
+
+	def run(self, argv):
+		self.debug(command_to_str(argv))
+		subprocess.check_call(argv)
+
+def command_to_str(command):
+	return " ".join(shlex.quote(x) for x in command)
+
+def confirm(prompt, default=False):
+	"""Prompt the user for confirmation.
+
+	The return value gives the user’s answer (`True` for `"y"`, `False` for
+	`"n"`).
+	"""
+
+	if resp:
+		prompt += " (Y/n): "
+	else:
+		prompt += " (N/y): "
+		
+	while True:
+		answer = input(prompt)
+		if not answer:
+			return default
+		if answer == "y" or answer == "Y":
+			return True
+		if answer == "n" or answer == "N":
+			return False
+		else:
+			print("Please enter “y” or “n”.")
+			continue
+
+def main(argv=sys.argv):
+	if sys.platform == "win32":
+		inkscape_default = "C:\Progra~1\Inkscape\inkscape.com"
+	else:
+		inkscape_default = "inkscape"
+
+	argparser = argparse.ArgumentParser(
+		prog=argv[0],
+		formatter_class=argparse.RawDescriptionHelpFormatter,
+		description="Exports layers from an SVG file.", 	
+		usage="%(prog)s [options] inputs…",
+		epilog="requirements:\n    This program requires Inkscape 0.48 (or higher) and Python 3."
+	)
+	argparser.add_argument(
+		"inputs",
+		nargs="+", 
+		help="SVG file(s) to export layers from"
+	)
+	argparser.add_argument(
+		"-d", "--dir",
+		default=".",
+		help="directory where images are exported to. By default, the current working directory."
+	)
+	argparser.add_argument(
+		"-f", "--force",
+		action="store_true",
+		default=False,
+		help="overwrite existing files. By default, the user is asked for confirmation."
+	)
+	argparser.add_argument(
+		"-p", "--prefix",
+		default="",
+		help="prefix the generated file names with the given prefix. By default, the prefix is empty."
+	)
+	argparser.add_argument(
+		"--inkscape",
+		default=inkscape_default,
+		help="path to inkscape command line executable"
+	)
+	argparser.add_argument(
+		"-t", "--type",
+		default="png",
+		choices=["png", "ps", "eps", "pdf", "plain-svg"],
+		help="set export type (and suffix). By default, `plain-svg`. For details about these formats, see `inkscape --help`."
+	)
+	argparser.add_argument(
+		"--extra",
+		action="append",
+		default=[],
+		help="pass the specified argument directly to inkscape. For more details, see `inkscape --help`."
+	)
+	argparser.add_argument(
+		"-v", "--verbose",
+		action="store_true", default=False,
+		help="write verbose output."
+	)
+
+	options = argparser.parse_args(argv[1:])
+	Exporter(argv[0], options)()
+
+
+if __name__ == "__main__":
+	main()
