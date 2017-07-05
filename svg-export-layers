@@ -28,6 +28,22 @@ import sys
 import xml.etree.ElementTree as element_tree
 
 class Exporter(object):
+	"""
+	An exportation task.
+
+	Attributes
+	----------
+	extension: str
+		output file extension
+	options: argparse.Namespace
+		options as returned by the argument parser
+	prog: str
+		program name
+	xml_namespaces: map of str to str
+		various useful XML namespaces. Keys are the prefixes used internally by
+		this exporter.
+	"""
+
 	def __init__(self, prog, options):
 		self.prog = prog
 		self.options = options
