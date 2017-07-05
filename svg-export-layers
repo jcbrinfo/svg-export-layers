@@ -58,9 +58,9 @@ class Exporter(object):
 				)
 				self.export_layer(path, node_id, label)
 
-	def debug(self, *msg):
+	def debug(self, *args):
 		if (self.options.verbose):
-			self.print_error(msg)
+			self.print_error(*args)
 
 	def export_layer(self, path, node_id, label):
 		self.debug("Exporting layer “%s”…" % label)
