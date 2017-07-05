@@ -70,11 +70,11 @@ class Exporter(object):
 			"".join([options.prefix, label, ".", self.extension])
 		)
 		# FIXME: Race condition
-		if options.force and os.path.exists(ouput_path) and not confirm(
-			"File “%s” already exists. Do you want to overwrite it?" % ouput_path,
+		if not options.force and os.path.exists(output_path) and not confirm(
+			"File “%s” already exists. Do you want to overwrite it?" % output_path,
 			False
 		):
-			print_error("File “%s” skipped." % ouput_path)
+			self.print_error("File “%s” skipped." % output_path)
 			return
 		command = [
 			options.inkscape,
@@ -107,11 +107,11 @@ def confirm(prompt, default=False):
 	`"n"`).
 	"""
 
-	if resp:
+	if default:
 		prompt += " (Y/n): "
 	else:
 		prompt += " (N/y): "
-		
+
 	while True:
 		answer = input(prompt)
 		if not answer:
