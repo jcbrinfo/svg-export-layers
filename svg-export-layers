@@ -23,6 +23,7 @@ For help, run `svg-export-layers --help`
 import argparse
 import os.path
 import shlex
+import shutil
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
@@ -39,6 +40,8 @@ class Exporter(object):
 	force_layer: bool
 		Do we have to manually extract the layer? `True` if Inkscape does not
 		support the `--export-id` option for the ouput type.
+	only_copy: bool
+		Do not run Inkscape. Simply copy the extracted layer.
 	options: argparse.Namespace
 		options as returned by the argument parser
 	prog: str
@@ -54,9 +57,14 @@ class Exporter(object):
 	def __init__(self, prog, options):
 		self.prog = prog
 		self.options = options
+		self.only_copy = False
 		if options.type == "plain-svg":
 			self.extension = "svg"
 			self.force_layer = True
+		elif options.type == "svg":
+			self.extension = "svg"
+			self.force_layer = True
+			self.only_copy = True
 		else:
 			self.extension = options.type
 			self.force_layer = False
@@ -80,6 +88,9 @@ class Exporter(object):
 		else:
 			self.__process_inputs()
 
+	def copy_file(self, path, output_path):
+		self.debug(command_to_str(["cp", path, output_path]))
+		shutil.copyfile(path, output_path)
 
 	def debug(self, *args):
 		if (self.options.verbose):
@@ -102,6 +113,9 @@ class Exporter(object):
 
 		if self.force_layer:
 			path = self.extract_layer(path, node_id)
+		if self.only_copy:
+			self.copy_file(path, output_path)
+			return
 		command = [
 			options.inkscape,
 			"-i", node_id,
@@ -260,8 +274,8 @@ def main(argv=sys.argv):
 	argparser.add_argument(
 		"-t", "--type",
 		default="plain-svg",
-		choices=["png", "ps", "eps", "pdf", "plain-svg"],
-		help="set export type (and suffix). By default, `plain-svg`. For details about these formats, see `inkscape --help`."
+		choices=["eps", "pdf", "plain-svg", "png", "ps", "svg"],
+		help="set export type (and suffix). By default, `plain-svg`. For details about these formats, see `inkscape --help`. When `svg` is specified, Inkscape is not invoked and the layer is simply extracted from the SVG file using an XML parser."
 	)
 	argparser.add_argument(
 		"--extra",
