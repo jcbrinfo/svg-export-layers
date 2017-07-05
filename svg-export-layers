@@ -58,13 +58,11 @@ class Exporter(object):
 
 	def __call__(self):
 		xml_namespaces = self.xml_namespaces
+		find_layers = self.find_layers
 		for path in self.options.inputs:
 			self.debug("Exporting from “%s”…" % path)
 			tree = element_tree.parse(path)
-			for node in tree.findall(
-				".//svg:g[@inkscape:groupmode='layer']",
-				namespaces=xml_namespaces
-			):
+			for node in find_layers(tree):
 				node_id = node.get("id")
 				if node_id is None:
 					continue
@@ -102,6 +100,12 @@ class Exporter(object):
 			"--", path
 		]
 		self.run(command)
+
+	def find_layers(self, tree):
+		return tree.getroot().iterfind(
+			"./svg:g[@inkscape:groupmode='layer']",
+			namespaces=self.xml_namespaces
+		)
 
 	def print_error(self, *args, **kwargs):
 		if not args or ("end" in kwargs):
