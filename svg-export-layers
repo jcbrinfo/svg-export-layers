@@ -165,7 +165,7 @@ def main(argv=sys.argv):
 	)
 	argparser.add_argument(
 		"-t", "--type",
-		default="png",
+		default="plain-svg",
 		choices=["png", "ps", "eps", "pdf", "plain-svg"],
 		help="set export type (and suffix). By default, `plain-svg`. For details about these formats, see `inkscape --help`."
 	)
